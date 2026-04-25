@@ -1,19 +1,24 @@
 CC = gcc
 CFLAGS = -municode -Wall -Werror -Os -s
 TARGET = ssh-shell.exe
+SERVER_TARGET = ssh-server.exe
+SERVER_LDFLAGS = -mwindows
 INSTALL_DIR = /c/msys64
 REG_FILE = ssh-shell.reg
 
-all: $(TARGET)
+all: $(TARGET) $(SERVER_TARGET)
 
 $(TARGET): ssh-shell.c
 	env MSYSTEM=UCRT64 bash -lc "$(CC) $< -o $@ $(CFLAGS)"
 
-clean:
-	rm -f $(TARGET)
+$(SERVER_TARGET): ssh-server.c
+	env MSYSTEM=UCRT64 bash -lc "$(CC) $< -o $@ $(CFLAGS) $(SERVER_LDFLAGS)"
 
-install: $(TARGET)
-	cp $(TARGET) $(REG_FILE) $(INSTALL_DIR)/
+clean:
+	rm -f $(TARGET) $(SERVER_TARGET)
+
+install: $(TARGET) $(SERVER_TARGET)
+	cp $(TARGET) $(SERVER_TARGET) $(REG_FILE) $(INSTALL_DIR)/
 	(cd $(INSTALL_DIR) && reg import $(REG_FILE))
 
 install-deps:

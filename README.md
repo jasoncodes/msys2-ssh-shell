@@ -41,8 +41,26 @@ make install
 
 This will:
 
-1. Copy `ssh-shell.exe` to `C:\msys64\`
+1. Copy `ssh-shell.exe` and `ssh-server.exe` to `C:\msys64\`
 2. Import `ssh-shell.reg` to set the OpenSSH `DefaultShell` registry key
+
+## Running GUI apps
+
+OpenSSH runs as background service by default meaning you cannot use it run GUI apps.
+Some applications will run okay headless but most will run into issues and not work.
+The easiest way is to run OpenSSH via Task Scheduler at startup, optionally on a second port.
+
+1. Open "Task Scheduler" and select "Task Scheduler Library".
+2. Click "Create Task…" and set the following:
+  * General:
+    * Name: `SSH server`
+  * Triggers, New:
+    * Begin the task: `At log on`
+  * Actions, New:
+    * Program/script: `C:\msys64\ssh-server.exe`
+    * Add arguments: `-o Port=2222`
+3. Log off and on or "Start" the task manually.
+4. Test with `ssh -p 2222 windows-host notepad`.
 
 ## License
 
