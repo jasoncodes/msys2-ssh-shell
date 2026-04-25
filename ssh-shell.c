@@ -2,6 +2,17 @@
 #include <wchar.h>
 #include <stdio.h>
 
+static int is_console_handle(HANDLE h) {
+    DWORD mode = 0;
+    return h != NULL && h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode);
+}
+
+static int stdio_uses_console(void) {
+    return is_console_handle(GetStdHandle(STD_INPUT_HANDLE)) ||
+           is_console_handle(GetStdHandle(STD_OUTPUT_HANDLE)) ||
+           is_console_handle(GetStdHandle(STD_ERROR_HANDLE));
+}
+
 static void delete_first_arg(wchar_t *s) {
     wchar_t *p = s;
 
@@ -68,6 +79,18 @@ int wmain(int argc, wchar_t *argv[]) {
     STARTUPINFOW si = { sizeof(si) };
     PROCESS_INFORMATION pi;
 
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+
+    int hadAttachedConsole = (GetConsoleWindow() != NULL);
+    int stdioIsConsole = stdio_uses_console();
+
+    // Detach as early as possible in non-terminal sessions.
+    if (!stdioIsConsole) {
+        FreeConsole();
+    }
+
     const wchar_t *raw = GetCommandLineW();
 
     // args are in one of two formats depending on if terminal mode is enabled
@@ -117,12 +140,26 @@ int wmain(int argc, wchar_t *argv[]) {
         swprintf(cmdline, 9000, L"bash.exe -lc %ls", escaped);
     }
 
+    DWORD creationFlags = 0;
+    if (!stdioIsConsole) {
+        if (hadAttachedConsole) {
+            creationFlags |= DETACHED_PROCESS;
+        } else {
+            creationFlags |= CREATE_NO_WINDOW;
+        }
+    }
+
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = hIn;
+    si.hStdOutput = hOut;
+    si.hStdError = hErr;
+
     // launch bash
     if (!CreateProcessW(
             L"C:\\msys64\\usr\\bin\\bash.exe",
             cmdline,
-            NULL, NULL, FALSE,
-            0, NULL, NULL,
+            NULL, NULL, TRUE,
+            creationFlags, NULL, NULL,
             &si, &pi
         )) {
         fwprintf(stderr, L"Failed to launch bash.exe (error %lu)\n", GetLastError());
