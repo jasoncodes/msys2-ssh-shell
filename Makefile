@@ -9,10 +9,10 @@ REG_FILE = ssh-shell.reg
 all: $(TARGET) $(SERVER_TARGET)
 
 $(TARGET): ssh-shell.c
-	env MSYSTEM=UCRT64 bash -lc "$(CC) $< -o $@ $(CFLAGS)"
+	BUILD_DIR="$$PWD" env MSYSTEM=UCRT64 bash -lc 'cd "$$BUILD_DIR" && $(CC) $< -o $@ $(CFLAGS)'
 
 $(SERVER_TARGET): ssh-server.c
-	env MSYSTEM=UCRT64 bash -lc "$(CC) $< -o $@ $(CFLAGS) $(SERVER_LDFLAGS)"
+	BUILD_DIR="$$PWD" env MSYSTEM=UCRT64 bash -lc 'cd "$$BUILD_DIR" && $(CC) $< -o $@ $(CFLAGS) $(SERVER_LDFLAGS)'
 
 clean:
 	rm -f $(TARGET) $(SERVER_TARGET)
