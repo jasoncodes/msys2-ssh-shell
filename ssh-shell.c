@@ -75,6 +75,50 @@ static void escape_for_windows(wchar_t *dst, const wchar_t *src)
     *dst++ = L'\0';
 }
 
+static const wchar_t *first_arg_basename(const wchar_t *s, wchar_t *buf, size_t buflen)
+{
+    const wchar_t *arg_start = s;
+    const wchar_t *arg_end;
+    const wchar_t *base_start;
+    size_t len;
+
+    while (*arg_start == L' ') arg_start++;
+
+    if (*arg_start == L'"') {
+        arg_start++;
+        arg_end = arg_start;
+        while (*arg_end && *arg_end != L'"') arg_end++;
+    } else {
+        arg_end = arg_start;
+        while (*arg_end && *arg_end != L' ') arg_end++;
+    }
+
+    base_start = arg_end;
+    while (base_start > arg_start &&
+           base_start[-1] != L'\\' &&
+           base_start[-1] != L'/') {
+        base_start--;
+    }
+
+    len = (size_t)(arg_end - base_start);
+    if (len >= buflen) len = buflen - 1;
+    wcsncpy(buf, base_start, len);
+    buf[len] = L'\0';
+
+    return buf;
+}
+
+static int is_powershell_command(const wchar_t *cmd)
+{
+    wchar_t exe[260];
+    first_arg_basename(cmd, exe, sizeof(exe) / sizeof(exe[0]));
+
+    return _wcsicmp(exe, L"powershell") == 0 ||
+           _wcsicmp(exe, L"powershell.exe") == 0 ||
+           _wcsicmp(exe, L"pwsh") == 0 ||
+           _wcsicmp(exe, L"pwsh.exe") == 0;
+}
+
 int wmain(int argc, wchar_t *argv[]) {
     STARTUPINFOW si = { sizeof(si) };
     PROCESS_INFORMATION pi;
@@ -127,22 +171,32 @@ int wmain(int argc, wchar_t *argv[]) {
         wcscpy(clean, L"/c/msys64/usr/lib/ssh/sftp-server");
     }
 
-    // escape for Windows
+    // PowerShell commands are already full Windows command lines. Running them
+    // through bash -lc first would consume PowerShell metacharacters like $ and ;.
     wchar_t escaped[9000];
-    escape_for_windows(escaped, clean);
-
-    // build final command
     wchar_t cmdline[9000];
-    if (clean[0] == L'\0') {
+    const wchar_t *app = L"C:\\msys64\\usr\\bin\\bash.exe";
+    int directWindowsCommand = 0;
+
+    if (is_powershell_command(clean)) {
+        wcsncpy(cmdline, clean, 8999);
+        cmdline[8999] = L'\0';
+        app = NULL;
+        directWindowsCommand = 1;
+    } else if (clean[0] == L'\0') {
         wcsncpy(cmdline, L"bash.exe -l", 8999);
         cmdline[8999] = L'\0';
     } else {
+        // escape for Windows
+        escape_for_windows(escaped, clean);
+
+        // build final command
         swprintf(cmdline, 9000, L"bash.exe -lc %ls", escaped);
     }
 
     DWORD creationFlags = 0;
     if (!stdioIsConsole) {
-        if (hadAttachedConsole) {
+        if (hadAttachedConsole && !directWindowsCommand) {
             creationFlags |= DETACHED_PROCESS;
         } else {
             creationFlags |= CREATE_NO_WINDOW;
@@ -154,15 +208,15 @@ int wmain(int argc, wchar_t *argv[]) {
     si.hStdOutput = hOut;
     si.hStdError = hErr;
 
-    // launch bash
+    // launch selected command processor
     if (!CreateProcessW(
-            L"C:\\msys64\\usr\\bin\\bash.exe",
+            app,
             cmdline,
             NULL, NULL, TRUE,
             creationFlags, NULL, NULL,
             &si, &pi
         )) {
-        fwprintf(stderr, L"Failed to launch bash.exe (error %lu)\n", GetLastError());
+        fwprintf(stderr, L"Failed to launch command processor (error %lu)\n", GetLastError());
         return 255;
     }
 

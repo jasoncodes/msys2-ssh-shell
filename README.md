@@ -10,6 +10,7 @@ When using a batch file as the default shell for Win32-OpenSSH (as described in 
 
 - Properly handles both terminal (`ssh -t`) and non-terminal (`ssh`) modes.
 - Correctly deals with Windows command-line escaping for bash including backslashes, quotes, and spaces.
+- Passes explicit `powershell`, `powershell.exe`, `pwsh`, and `pwsh.exe` commands directly to Windows so PowerShell metacharacters are not consumed by bash.
 - Automatically redirects SFTP to MSYS2's `sftp-server` for proper path handling.
 - Minimal overhead via a single native Windows executable instead of multiple scripts.
 
