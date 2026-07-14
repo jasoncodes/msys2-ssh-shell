@@ -1,4 +1,18 @@
+> [!WARNING]
+> This project is deprecated. Use
+> [jasoncodes/msys2-user-sshd](https://github.com/jasoncodes/msys2-user-sshd)
+> instead.
+
 # ssh-shell - Windows OpenSSH Shell Wrapper for MSYS2/MinGW
+
+`msys2-user-sshd` leaves the Windows SSH server on port 22, using either its
+default shell or PowerShell, and runs a separate SSH server inside the MSYS2
+environment on port 2222. Connections to the MSYS2 server are much faster,
+have better PTY emulation, and can access the interactive Windows session.
+
+There is no reason to use this project for new installations unless you
+specifically want the Windows SSH server on port 22 to use MSYS2 as its default
+shell. Most users do not need that configuration.
 
 A lightweight C wrapper to use MSYS2 bash as the default shell for [Win32-OpenSSH](https://github.com/PowerShell/Win32-OpenSSH) without the Ctrl-C batch file issue.
 
